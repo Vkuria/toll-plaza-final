@@ -1,0 +1,188 @@
+<div class="dashboard">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">🛣️</div>
+      <div>
+        <h1 class="header-title">Toll Plaza Dashboard</h1>
+        <p class="header-subtitle">Vehicle Monitoring & Fee Management System</p>
+      </div>
+    </div>
+    <button class="btn-refresh" (click)="fetchLogs()" [disabled]="isLoading">
+      <span [class.spinning]="isLoading">⟳</span> Refresh
+    </button>
+  </header>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ filteredLogs.length }}</div>
+      <div class="stat-label">Total Records</div>
+    </div>
+
+    <!-- ✅ FIXED -->
+    <div class="stat-card stat-revenue">
+      <div class="stat-value">${{ totalRevenue | number:'1.2-2' }}</div>
+      <div class="stat-label">Revenue (Filtered)</div>
+    </div>
+
+    <div class="stat-card stat-paid">
+      <div class="stat-value">{{ paidCount }}</div>
+      <div class="stat-label">Paid</div>
+    </div>
+
+    <div class="stat-card stat-pending">
+      <div class="stat-value">{{ pendingCount }}</div>
+      <div class="stat-label">Pending</div>
+    </div>
+
+    <div class="stat-card stat-violation">
+      <div class="stat-value">{{ violationCount }}</div>
+      <div class="stat-label">Violations</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-grid">
+
+    <!-- Left Section -->
+    <div class="table-section">
+
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Search by license plate..."
+            [(ngModel)]="searchPlate"
+            (ngModelChange)="onSearchChange()"
+          />
+          <button *ngIf="searchPlate" class="clear-btn" (click)="searchPlate=''; onSearchChange()">✕</button>
+        </div>
+
+        <select class="filter-select" [(ngModel)]="filterType" (ngModelChange)="onFilterChange()">
+          <option value="">All Vehicle Types</option>
+          <option *ngFor="let t of vehicleTypes.slice(1)" [value]="t">{{ t }}</option>
+        </select>
+
+        <select class="filter-select" [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
+          <option value="">All Statuses</option>
+          <option *ngFor="let s of statuses.slice(1)" [value]="s">{{ s }}</option>
+        </select>
+
+        <button class="btn-clear-all" (click)="clearFilters()" *ngIf="searchPlate || filterType || filterStatus">
+          Clear All
+        </button>
+      </div>
+
+      <!-- Error -->
+      <div *ngIf="errorMessage" class="alert-error">
+        ⚠️ {{ errorMessage }}
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading records...</p>
+      </div>
+
+      <!-- Table -->
+      <div *ngIf="!isLoading" class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>License Plate</th>
+              <th>Vehicle Type</th>
+              <th>Category</th>
+              <th>Timestamp</th>
+              <th>Toll Fee</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let log of filteredLogs; let i = index" class="table-row">
+              <td class="row-num">{{ i + 1 }}</td>
+
+              <td class="plate-cell">
+                <span class="plate-badge">{{ log.licensePlate }}</span>
+              </td>
+
+              <td>
+                <span class="vehicle-type">
+                  {{ getVehicleIcon(log.vehicleType) }} {{ log.vehicleType }}
+                </span>
+              </td>
+
+              <td>
+                <span class="category-badge" [class.gov]="log.vehicleCategory === 'Official/Government'">
+                  {{ log.vehicleCategory === 'Official/Government' ? '🏛️ Official' : '👤 Regular' }}
+                </span>
+              </td>
+
+              <td class="timestamp-cell">
+                {{ formatTimestamp(log.timestamp) }}
+              </td>
+
+              <!-- ✅ FULLY FIXED -->
+              <td class="fee-cell">
+                <span [class.free-fee]="+log.tollFee === 0">
+                  ${{ (log.tollFee || 0) | number:'1.2-2' }}
+                </span>
+              </td>
+
+              <td>
+                <span class="status-badge" [ngClass]="getStatusClass(log.status)">
+                  {{ log.status }}
+                </span>
+              </td>
+            </tr>
+
+            <!-- Empty State -->
+            <tr *ngIf="filteredLogs.length === 0">
+              <td colspan="7" class="empty-state">
+                <div class="empty-icon">🔎</div>
+                <p>No records match your filters.</p>
+                <button class="btn-clear-all" (click)="clearFilters()">Clear Filters</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div class="table-footer" *ngIf="!isLoading">
+        Showing <strong>{{ filteredLogs.length }}</strong> of <strong>{{ allLogs.length }}</strong> records
+      </div>
+    </div>
+
+    <!-- Right Section -->
+    <div class="form-section">
+      <app-new-entry-form (entryCreated)="onEntryCreated($event)"></app-new-entry-form>
+
+      <!-- Fee Reference -->
+      <div class="fee-reference">
+        <h3 class="fee-ref-title">💰 Fee Schedule</h3>
+        <div class="fee-ref-grid">
+          <div class="fee-ref-item">
+            <span>🚗 Car</span><strong>$5.00</strong>
+          </div>
+          <div class="fee-ref-item">
+            <span>🏍️ Motorcycle</span><strong>$2.00</strong>
+          </div>
+          <div class="fee-ref-item">
+            <span>🚛 Truck</span><strong>$10.00</strong>
+          </div>
+          <div class="fee-ref-item">
+            <span>🏛️ Official/Gov</span><strong>$0.00</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
