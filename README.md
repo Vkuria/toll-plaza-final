@@ -62,7 +62,5 @@ npm start
 
 The Angular app will open at **http://localhost:4200**
 
-> The Angular dev server proxies `/api/*` calls to `http://localhost:3000` automatically via `proxy.conf.json`.
 
----
 
